@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Network Benchmarks - Infrastructure Resources
+
+Resources:
+
+  # Bucket for storing reports
+  ReportBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-reports'
+      Tags:
+        - { Key: Name, Value: !Sub '${AWS::StackName}-reports' }
+
+  # ECR Repo for iperf-server image
+  IPerfServerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: iperf-server
+      Tags:
+        - { Key: Name, Value: iperf-server }
+
+  # ECS Cluster for Fargate benchmarks
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-cluster
+      ClusterSettings:
+        - { Name: containerInsights, Value: disabled }
+      Tags:
+        - { Key: Name, Value: !Sub '${AWS::StackName}-cluster' }
+
+  # TaskExecutionRole for Fargate tasks
+  TaskExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Path: /
+      RoleName: !Sub ${AWS::StackName}-task-execution-role
+
+  # Log group for iperf server running in Fargate
+  IPerfServerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${AWS::StackName}-iperf-server
+      RetentionInDays: 7
+
+  # Security group for client - server communication
+  SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub Security group for ${AWS::StackName}
+      GroupName: !Sub ${AWS::StackName}-sg
+      VpcId: !ImportValue infra-vpc-VpcId
+      Tags:
+        - { Key: Name, Value: !Sub '${AWS::StackName}-sg' }
+
+  SecurityGroupSelfIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref SecurityGroup
+      Description: Allow traffic between client & server
+      IpProtocol: tcp
+      FromPort: 0
+      ToPort: 65535
+      SourceSecurityGroupId: !GetAtt SecurityGroup.GroupId
+
+  # Role for iperf client node
+  ClientRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Path: /
+      RoleName: !Sub ${AWS::StackName}-client-role
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: AllowReportBucketWrites
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource:
+                  - !Sub ${ReportBucket.Arn}/*
+              - Sid: AllowECSDiscovery
+                Effect: Allow
+                Action:
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
+                Resource: '*'
+                Condition:
+                  ArnLike:
+                    ecs:cluster: !GetAtt Cluster.Arn
+
+  ClientRoleProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ClientRole
+      InstanceProfileName: !Sub '${AWS::StackName}-client-role-profile'
+
+Outputs:
+  ReportBucket:
+    Value: !Ref ReportBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-ReportBucket
+
+  Cluster:
+    Value: !Ref Cluster
+    Export:
+      Name: !Sub ${AWS::StackName}-Cluster
+
+  TaskExecutionRoleArn:
+    Value: !GetAtt TaskExecutionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-TaskExecutionRoleArn
+
+  IPerfServerLogGroup:
+    Value: !Ref IPerfServerLogGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-IPerfServerLogGroup
+
+  SecurityGroup:
+    Value: !Ref SecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-SecurityGroup
+
+  ClientRoleProfileArn:
+    Value: !GetAtt ClientRoleProfile.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-ClientRoleProfileArn
+

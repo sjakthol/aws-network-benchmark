@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Network Benchmarks - Containers in Fargate
+
+Parameters:
+  Cpu:
+    Type: String
+  Memory:
+    Type: String
+  StackNamePrefix:
+    Type: String
+  AmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  ClientInstance:
+    Type: String
+    Default: c5.xlarge
+
+Resources:
+
+  # iperf server running in Fargate
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Name: iperf
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/iperf-server
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group:
+                Fn::ImportValue: !Sub ${StackNamePrefix}-infra-IPerfServerLogGroup
+              awslogs-stream-prefix: !Sub iperf-${Cpu}-${Memory}
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      Family: !Sub ${AWS::StackName}-task-definition
+      ExecutionRoleArn:
+        Fn::ImportValue: !Sub ${StackNamePrefix}-infra-TaskExecutionRoleArn
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Tags:
+        - { Key: Name, Value: !Sub '${AWS::StackName}-task-definition' }
+
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Fn::ImportValue: !Sub ${StackNamePrefix}-infra-Cluster
+      DesiredCount: 1
+      EnableECSManagedTags: true
+      LaunchType: FARGATE
+      PlatformVersion: 1.4.0
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: 'ENABLED'
+          Subnets:
+            - Fn::ImportValue: infra-vpc-sn-public-a
+          SecurityGroups:
+            - Fn::ImportValue: !Sub ${StackNamePrefix}-infra-SecurityGroup
+      ServiceName: !Sub ${AWS::StackName}
+      Tags:
+        - { Key: Name, Value: !Sub '${AWS::StackName}' }
+      TaskDefinition: !Ref TaskDefinition
+
+  # iperf client running in ec2
+  LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-template
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn:
+            Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ClientRoleProfileArn
+        ImageId: !Ref AmiId
+        InstanceMarketOptions:
+          MarketType: spot
+          SpotOptions:
+            SpotInstanceType: one-time
+        InstanceType: !Ref ClientInstance
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub ${StackNamePrefix}-infra-SecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - { Key: Name, Value: !Sub '${AWS::StackName}' }
+          - ResourceType: volume
+            Tags:
+              - { Key: Name, Value: !Sub '${AWS::StackName}-volume' }
+        UserData:
+          Fn::Base64:
+            Fn::Sub:
+            - |
+              #!/bin/bash
+              set -euo xtrace -o pipefail
+
+              trap 'sleep 300 && /opt/aws/bin/cfn-signal --exit-code 1 --resource Instance --region ${AWS::Region} --stack ${AWS::StackName}' ERR
+
+              # SSM Agent
+              yum install -y amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+
+              # Run benchmark
+              yum install -y iperf3 jq
+
+              SERVER_TASK_ARN="$(aws --region eu-north-1 ecs list-tasks --cluster ${Cluster} --service-name ${Service.Name} --output text --query 'taskArns[0]')"
+              SERVER_IP="$(aws --region eu-north-1 ecs describe-tasks --cluster ${Cluster} --tasks $SERVER_TASK_ARN --query tasks[0].containers[0].networkInterfaces[0].privateIpv4Address --output text)"
+
+              iperf3 --client $SERVER_IP --time 900 --interval 10 --parallel 4 --json --reverse | jq -S \
+                --arg CPU ${Cpu} \
+                --arg MEMORY ${Memory} \
+                --arg REGION ${AWS::Region} \
+                --arg CLIENT_INSTANCE ${ClientInstance} \
+                '{
+                    aws_region: $REGION,
+                    client: { type: "ec2", instance: $CLIENT_INSTANCE },
+                    end: .end,
+                    intervals: [.intervals[] | del(.streams)],
+                    server: { type: "fargate", cpu: $CPU, memory: $MEMORY },
+                    start: .start,
+                    timestamp: now | strftime("%Y-%m-%dT%H:%M:%SZ")
+                }' | gzip | aws s3 cp - s3://${ReportBucket}/reports/date=$(date -Idate)/fargate-${Cpu}-${Memory}-$(date +%Y-%m-%dT%H:%M:%S).json.gz
+
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
+
+            - Cluster:
+                Fn::ImportValue: !Sub ${StackNamePrefix}-infra-Cluster
+              ReportBucket:
+                Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ReportBucket
+
+  Instance:
+    Type: "AWS::EC2::Instance"
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT20M
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      SubnetId: !ImportValue infra-vpc-sn-public-a
