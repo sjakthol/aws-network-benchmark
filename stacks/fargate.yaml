@@ -104,8 +104,8 @@ Resources:
               # Run benchmark
               yum install -y iperf3 jq
 
-              SERVER_TASK_ARN="$(aws --region eu-north-1 ecs list-tasks --cluster ${Cluster} --service-name ${Service.Name} --output text --query 'taskArns[0]')"
-              SERVER_IP="$(aws --region eu-north-1 ecs describe-tasks --cluster ${Cluster} --tasks $SERVER_TASK_ARN --query tasks[0].containers[0].networkInterfaces[0].privateIpv4Address --output text)"
+              SERVER_TASK_ARN="$(aws --region ${AWS::Region} ecs list-tasks --cluster ${Cluster} --service-name ${Service.Name} --output text --query 'taskArns[0]')"
+              SERVER_IP="$(aws --region ${AWS::Region} ecs describe-tasks --cluster ${Cluster} --tasks $SERVER_TASK_ARN --query tasks[0].containers[0].networkInterfaces[0].privateIpv4Address --output text)"
 
               iperf3 --client $SERVER_IP --time 900 --interval 10 --parallel 4 --json --reverse | jq -S \
                 --arg CPU ${Cpu} \
@@ -134,7 +134,7 @@ Resources:
     CreationPolicy:
       ResourceSignal:
         Count: 1
-        Timeout: PT20M
+        Timeout: PT75M
     Properties:
       LaunchTemplate:
         LaunchTemplateId: !Ref LaunchTemplate
