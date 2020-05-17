@@ -1,5 +1,72 @@
 Network performance benchmarks for AWS Fargate.
 
+## Results
+
+Here are some results from benchmarks performed on eu-west-1 and eu-north-1
+regions on 2020-05-17. See [analysis/results.ipynb](analysis/results.ipynb)
+for more detailed graphs.
+
+### eu-west-1
+
+|vCPU|Memory (MB)|Baseline (Gbps)|Burst (Gbps)|Burst Duration (seconds)|
+|----|-----------|---------------|------------|------------------------|
+|0.25|512        |0.254          |0.850       |80                      |
+|0.25|1024       |0.254          |0.849       |80                      |
+|0.25|2048       |0.254          |0.841       |80                      |
+|0.50|1024       |0.620          |0.620       |-                       |
+|0.50|2048       |0.620          |0.620       |-                       |
+|0.50|4096       |1.240          |1.241       |-                       |
+|1.00|2048       |0.620          |0.620       |-                       |
+|1.00|4096       |1.240          |1.240       |-                       |
+|1.00|8192       |0.745          |10.093      |270                     |
+|2.00|4096       |1.240          |1.240       |-                       |
+|2.00|8192       |0.745          |10.093      |290                     |
+|2.00|16384      |0.694          |0.695       |-                       |
+|4.00|8192       |0.744          |0.744       |-                       |
+|4.00|16384      |0.694          |0.695       |-                       |
+|4.00|30720      |0.694          |0.695       |-                       |
+
+Observations:
+
+* All tasks have very stable baseline performance.
+  * Bigger tasks seem to have slightly faster network.
+* Some tasks are able to burst up-to 10 Gbps.
+  * Most tasks are not able to burst beyond baseline capacity.
+
+
+### eu-north-1
+
+| vCPU | Memory (MB) | Baseline (Gbps) | Burst (Gbps) | Burst Duration (seconds) |
+|------|-------------|-----------------|--------------|--------------------------|
+| 0.25 | 512         | 0.254           | 4.974        | 630.0                    |
+| 0.25 | 1024        | 0.254           | 4.974        | 480.0                    |
+| 0.25 | 2048        | 0.254           | 4.974        | 540.0                    |
+| 0.50 | 1024        | 0.509           | 4.974        | 1050.0                   |
+| 0.50 | 2048        | 0.509           | 4.974        | 930.0                    |
+| 0.50 | 4096        | 0.509           | 4.974        | 940.0                    |
+| 1.00 | 2048        | 0.745           | 10.039       | 350.0                    |
+| 1.00 | 4096        | 0.745           | 10.039       | 270.0                    |
+| 1.00 | 8192        | 0.745           | 10.039       | 260.0                    |
+| 2.00 | 4096        | 0.745           | 10.039       | 300.0                    |
+| 2.00 | 8192        | 0.745           | 10.039       | 290.0                    |
+| 2.00 | 16384       | 1.243           | 10.039       | 580.0                    |
+| 4.00 | 8192        | 1.243           | 10.039       | 550.0                    |
+| 4.00 | 16384       | 1.243           | 10.039       | 430.0                    |
+| 4.00 | 30720       | 1.243           | 10.039       | 490.0                    |
+
+Observations:
+
+* Tasks with < 1 vCPU are able to burst to 5 Gbps.
+  * Length of burst depends primarily on CPU allocation.
+  * Length is a bit longer for containers with largest possible memory allocation for a vCPU configuration.
+* Tasks with >= 1 vCPUs are able to burst to 10 Gbps
+  * Length of burst depends on CPU & Memory allocation
+  * Tasks with largest memory allocation get slightly longer burst.
+  * Length of burst is shorter than that of smaller containers (but has 2x more bandwidth)
+* Network performance is much better than in eu-west-1.
+  * Burst capacity is available for all containers sizes.
+  * Baseline capacity increases linearly as the container grows (except for the biggest containers)
+
 ## Running Benchmarks
 
 ### Prerequisites
