@@ -60,6 +60,7 @@ endif
 	@echo "All done!"
 
 benchmark-fargate-all: benchmark-fargate-256-512 benchmark-fargate-256-1024 benchmark-fargate-256-2048 benchmark-fargate-512-1024 benchmark-fargate-512-2048 benchmark-fargate-512-4096 benchmark-fargate-1024-2048 benchmark-fargate-1024-4096 benchmark-fargate-1024-8192 benchmark-fargate-2048-4096 benchmark-fargate-2048-8192 benchmark-fargate-2048-16384 benchmark-fargate-4096-8192 benchmark-fargate-4096-16384 benchmark-fargate-4096-30720
+benchmark-fargate-subset: benchmark-fargate-256-512 benchmark-fargate-512-1024 benchmark-fargate-1024-2048 benchmark-fargate-2048-4096 benchmark-fargate-4096-8192
 
 benchmark-fargate-256-512:
 	$(MAKE) benchmark-fargate CPU=256 MEMORY=512
