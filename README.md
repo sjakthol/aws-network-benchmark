@@ -1,4 +1,4 @@
-Network performance benchmarks for AWS Fargate.
+Network performance benchmarks for AWS Fargate and AWS Lambda.
 
 ## Results (Fargate)
 
