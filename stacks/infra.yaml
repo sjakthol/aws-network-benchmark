@@ -81,11 +81,14 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: ec2.amazonaws.com
+              Service:
+                - ec2.amazonaws.com
+                - lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
       Path: /
       RoleName: !Sub ${AWS::StackName}-client-role
       Policies:
@@ -142,6 +145,11 @@ Outputs:
     Value: !Ref SecurityGroup
     Export:
       Name: !Sub ${AWS::StackName}-SecurityGroup
+
+  ClientRoleArn:
+    Value: !GetAtt ClientRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-ClientRoleArn
 
   ClientRoleProfileArn:
     Value: !GetAtt ClientRoleProfile.Arn

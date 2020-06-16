@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Network Benchmarks - Lambda Functions
+
+Parameters:
+  Memory:
+    Type: Number
+    MinValue: 128
+    MaxValue: 3008
+  StackNamePrefix:
+    Type: String
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-function
+      RetentionInDays: 7
+
+  Function:
+    DependsOn: LogGroup
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: ../lambda/
+      Description: !Sub Lambda function for AWS network benchmarks (${Memory} MB)
+      Environment:
+        Variables:
+          IPERF_SERVER_IP:
+            Fn::ImportValue: !Sub ${StackNamePrefix}-lambda-server-ServerIp
+          REPORT_BUCKET:
+            Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ReportBucket
+      FunctionName: !Sub '${AWS::StackName}-function'
+      Handler: benchmark.handler
+      MemorySize: !Ref Memory
+      ReservedConcurrentExecutions: 1
+      Role:
+        Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ClientRoleArn
+      Runtime: python3.7
+      Timeout: 350
+      Tags:
+        - { Key: Name, Value: !Sub '${AWS::StackName}-function' }
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub ${StackNamePrefix}-infra-SecurityGroup
+        SubnetIds:
+          - Fn::ImportValue: infra-vpc-sn-private-with-endpoints-a

@@ -17,11 +17,18 @@ TAGS ?= Deployment=$(STACK_REGION_PREFIX)
 define stack_template =
 
 deploy-$(basename $(notdir $(1))): $(1)
+	$(AWS_CMD) cloudformation package \
+		--template-file $(1) \
+		--s3-bucket $(AWS_ACCOUNT_ID)-$(AWS_REGION)-build-resources \
+		--s3-prefix $(STACK_REGION_PREFIX) \
+		--output-template-file $(1).packaged
+
 	$(AWS_CMD) cloudformation deploy \
 		--stack-name $(STACK_REGION_PREFIX)-$(basename $(notdir $(1)))$(STACK_SUFFIX) \
 		--tags $(TAGS) \
 		--parameter-overrides StackNamePrefix=$(STACK_REGION_PREFIX) $(EXTRA_PARAMETERS) \
-		--template-file $(1) \
+		--template-file $(1).packaged \
+		--no-fail-on-empty-changeset \
 		--capabilities CAPABILITY_NAMED_IAM
 
 delete-$(basename $(notdir $(1))): $(1)
@@ -96,3 +103,28 @@ benchmark-fargate-4096-16384:
 	$(MAKE) benchmark-fargate CPU=4096 MEMORY=16384
 benchmark-fargate-4096-30720:
 	$(MAKE) benchmark-fargate CPU=4096 MEMORY=30720
+
+benchmark-lambda:
+ifndef $(or MEMORY)
+	$(error Missing arguments. Must define MEMORY= to run Lambda benchmark!)
+endif
+	@echo "Starting benchmark for Lambda function with $(MEMORY) memory units..."
+	$(MAKE) deploy-lambda STACK_SUFFIX="-$(MEMORY)" EXTRA_PARAMETERS="Memory=$(MEMORY)"
+
+	@echo "Invoking Lambda function with $(MEMORY) memory units"
+	$(AWS_CMD) --cli-read-timeout 910 lambda invoke --function-name $(STACK_REGION_PREFIX)-lambda-$(MEMORY)-function /dev/stdout
+
+	@echo "Cleaning up"
+	$(MAKE) delete-lambda STACK_SUFFIX="-$(MEMORY)"
+
+benchmark-lambda_all: benchmark-lambda-128 benchmark-lambda-256 benchmark-lambda-512 benchmark-lambda-1024 benchmark-lambda-1792 benchmark-lambda-2048 benchmark-lambda-3008
+benchmark-lambda-128:
+benchmark-lambda-256:
+benchmark-lambda-512:
+benchmark-lambda-1024:
+benchmark-lambda-1792:
+benchmark-lambda-2048:
+benchmark-lambda-3008:
+
+benchmark-lambda-%:
+	$(MAKE) benchmark-lambda MEMORY=$*

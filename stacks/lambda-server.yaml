@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Network Benchmarks - Lambda Functions - Server Side Component
+
+Parameters:
+  StackNamePrefix:
+    Type: String
+  AmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  ServerInstance:
+    Type: String
+    Default: c5.xlarge
+
+Resources:
+
+  # iperf server running in ec2
+  LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-template
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn:
+            Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ClientRoleProfileArn
+        ImageId: !Ref AmiId
+        InstanceMarketOptions:
+          MarketType: spot
+          SpotOptions:
+            SpotInstanceType: one-time
+        InstanceType: !Ref ServerInstance
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub ${StackNamePrefix}-infra-SecurityGroup
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - { Key: Name, Value: !Sub '${AWS::StackName}' }
+          - ResourceType: volume
+            Tags:
+              - { Key: Name, Value: !Sub '${AWS::StackName}-volume' }
+        UserData:
+          Fn::Base64: !Sub |
+              #!/bin/bash
+              set -euo xtrace -o pipefail
+
+              trap 'sleep 300 && /opt/aws/bin/cfn-signal --exit-code 1 --resource Instance --region ${AWS::Region} --stack ${AWS::StackName}' ERR
+
+              # SSM Agent
+              yum install -y amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+
+              # iperf3
+              yum install -y iperf3
+              iperf3 --server &
+
+              /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
+
+  Instance:
+    Type: "AWS::EC2::Instance"
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT75M
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      SubnetId: !ImportValue infra-vpc-sn-public-a
+
+Outputs:
+  ServerIp:
+    Value: !GetAtt Instance.PrivateIp
+    Export:
+      Name: !Sub ${AWS::StackName}-ServerIp
