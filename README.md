@@ -186,7 +186,7 @@ make delete-lambda-server
 
 This project uses [iperf3](https://iperf.fr/) to measure network performance.
 
-For Fargete, we package an iperf3 server into a Docker container, deploy the
+For Fargate, we package an iperf3 server into a Docker container, deploy the
 container as a Fargate task and create an EC2 instance to execute iperf3 client
 against the iperf3 server in Fargate. Benchmarks configure iperf3 client to use
 10 connections to execute a 15 minute benchmark in reverse mode (server sends the
