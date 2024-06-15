@@ -1,3 +1,3 @@
-FROM amazonlinux:2
+FROM amazonlinux:2023
 
-RUN yum install -y iperf3
+RUN dnf install -y iperf3

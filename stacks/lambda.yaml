@@ -34,7 +34,7 @@ Resources:
       ReservedConcurrentExecutions: 1
       Role:
         Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ClientRoleArn
-      Runtime: python3.7
+      Runtime: python3.12
       Timeout: 350
       Tags:
         - { Key: Name, Value: !Sub '${AWS::StackName}-function' }

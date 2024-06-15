@@ -2,3 +2,4 @@
 data/
 *.packaged
 lambda/lib/
+cid
