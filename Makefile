@@ -46,7 +46,7 @@ build:
 	$(DOCKER) build -t iperf-server .
 
 tag: build
-	$(DOCKER) tag iperf $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/iperf-server
+	$(DOCKER) tag iperf-server $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/iperf-server
 
 push: tag
 	$(DOCKER) push $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com/iperf-server
