@@ -3,3 +3,4 @@ data/
 *.packaged
 lambda/lib/
 cid
+.venv
