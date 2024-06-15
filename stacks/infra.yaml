@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Network Benchmarks - Infrastructure Resources
+Transform: AWS::Serverless-2016-10-31
 
 Resources:
 
@@ -119,6 +120,40 @@ Resources:
       Roles:
         - !Ref ClientRole
       InstanceProfileName: !Sub '${AWS::StackName}-client-role-profile'
+
+  # Dymmy Lambda function to keep Lambda network interfaces warm for testing
+  WarmupFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-WarmupFunction
+      RetentionInDays: 7
+
+  WarmupFunction:
+    DependsOn: WarmupFunctionLogGroup
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Dummy function to keep Lambda network interfaces warm for testing
+      Events:
+        Warmup:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+      Handler: index.handler
+      InlineCode: |
+        def handler(event, context):
+          return {}
+      MemorySize: 128
+      FunctionName: !Sub ${AWS::StackName}-WarmupFunction
+      Role: !GetAtt ClientRole.Arn
+      Runtime: python3.12
+      Timeout: 10
+      Tags:
+        Name: !Sub '${AWS::StackName}-WarmupFunction'
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        SubnetIds:
+          - Fn::ImportValue: infra-vpc-sn-private-with-endpoints-a
 
 Outputs:
   ReportBucket:
