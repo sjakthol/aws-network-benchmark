@@ -13,7 +13,7 @@ Parameters:
     Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
   ClientInstance:
     Type: String
-    Default: c5.xlarge
+    Default: c6in.xlarge
 
 Resources:
 
