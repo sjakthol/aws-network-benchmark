@@ -10,7 +10,7 @@ Parameters:
     Type: String
   AmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
   ClientInstance:
     Type: String
     Default: c5.xlarge
@@ -70,6 +70,10 @@ Resources:
     Properties:
       LaunchTemplateName: !Sub ${AWS::StackName}-template
       LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              Encrypted: true
         IamInstanceProfile:
           Arn:
             Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ClientRoleProfileArn
@@ -79,6 +83,8 @@ Resources:
           SpotOptions:
             SpotInstanceType: one-time
         InstanceType: !Ref ClientInstance
+        MetadataOptions:
+          HttpTokens: required
         SecurityGroupIds:
           - Fn::ImportValue: !Sub ${StackNamePrefix}-infra-SecurityGroup
         TagSpecifications:
@@ -97,12 +103,8 @@ Resources:
 
               trap 'sleep 300 && /opt/aws/bin/cfn-signal --exit-code 1 --resource Instance --region ${AWS::Region} --stack ${AWS::StackName}' ERR
 
-              # SSM Agent
-              yum install -y amazon-ssm-agent
-              systemctl start amazon-ssm-agent
-
               # Run benchmark
-              yum install -y iperf3 jq
+              dnf install -y iperf3 jq
 
               SERVER_TASK_ARN="$(aws --region ${AWS::Region} ecs list-tasks --cluster ${Cluster} --service-name ${Service.Name} --output text --query 'taskArns[0]')"
               SERVER_IP="$(aws --region ${AWS::Region} ecs describe-tasks --cluster ${Cluster} --tasks $SERVER_TASK_ARN --query tasks[0].containers[0].networkInterfaces[0].privateIpv4Address --output text)"
@@ -131,6 +133,7 @@ Resources:
 
   Instance:
     Type: "AWS::EC2::Instance"
+    DependsOn: Service
     CreationPolicy:
       ResourceSignal:
         Count: 1
