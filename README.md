@@ -123,7 +123,7 @@ in this directory. Once the ECR registry has been created, you'll need to build 
 used for benchmarks:
 
 ```bash
-make login build tag push
+make build tag push
 ```
 
 ### Execute Benchmarks

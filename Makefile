@@ -42,9 +42,6 @@ $(foreach template, $(wildcard stacks/*.yaml), $(eval $(call stack_template,$(te
 
 DOCKER = docker
 
-login:
-	$(AWS_CMD) ecr get-login --no-include-email | bash
-
 build:
 	$(DOCKER) build -t iperf-server .
 
