@@ -6,7 +6,7 @@ Parameters:
     Type: String
   AmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
   ServerInstance:
     Type: String
     Default: c5.xlarge
@@ -19,6 +19,10 @@ Resources:
     Properties:
       LaunchTemplateName: !Sub ${AWS::StackName}-template
       LaunchTemplateData:
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              Encrypted: true
         IamInstanceProfile:
           Arn:
             Fn::ImportValue: !Sub ${StackNamePrefix}-infra-ClientRoleProfileArn
@@ -28,6 +32,8 @@ Resources:
           SpotOptions:
             SpotInstanceType: one-time
         InstanceType: !Ref ServerInstance
+        MetadataOptions:
+          HttpTokens: required
         SecurityGroupIds:
           - Fn::ImportValue: !Sub ${StackNamePrefix}-infra-SecurityGroup
         TagSpecifications:
@@ -44,12 +50,8 @@ Resources:
 
               trap 'sleep 300 && /opt/aws/bin/cfn-signal --exit-code 1 --resource Instance --region ${AWS::Region} --stack ${AWS::StackName}' ERR
 
-              # SSM Agent
-              yum install -y amazon-ssm-agent
-              systemctl start amazon-ssm-agent
-
               # iperf3
-              yum install -y iperf3
+              dnf install -y iperf3
               iperf3 --server &
 
               /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource Instance --region ${AWS::Region}
