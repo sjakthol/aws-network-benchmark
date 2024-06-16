@@ -3,7 +3,7 @@ Network performance benchmarks for AWS Fargate and AWS Lambda.
 ## Results (Fargate)
 
 Here are some results from benchmarks performed on eu-west-1 and eu-north-1
-regions on 2020-05-17. See [analysis/2024/results.ipynb](analysis/2024/results.ipynb)
+regions on 2024-06-15. See [analysis/2024/results.ipynb](analysis/2024/results.ipynb)
 for more detailed graphs.
 
 ### eu-west-1
