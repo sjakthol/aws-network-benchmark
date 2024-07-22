@@ -4,8 +4,6 @@ Description: Network Benchmarks - Lambda Functions
 Parameters:
   Memory:
     Type: Number
-    MinValue: 128
-    MaxValue: 3008
   StackNamePrefix:
     Type: String
 

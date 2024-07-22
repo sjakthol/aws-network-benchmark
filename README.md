@@ -102,6 +102,9 @@ for more detailed graphs.
 | 1792        | 0.604           | 2.740        | 0                       |
 | 2048        | 0.607           | 2.732        | 0                       |
 | 3008        | 0.568           | 2.749        | 0                       |
+| 10240*      | 0.580           | 2.696        | 0                       |
+
+\* Benchmark with 10240 MB of memory was performed separately from others on 2024-07-22.
 
 ### Observations
 

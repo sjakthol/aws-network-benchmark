@@ -114,7 +114,7 @@ endif
 	@echo "Cleaning up"
 	$(MAKE) delete-lambda STACK_SUFFIX="-$(MEMORY)"
 
-benchmark-lambda_all: benchmark-lambda-128 benchmark-lambda-256 benchmark-lambda-512 benchmark-lambda-1024 benchmark-lambda-1792 benchmark-lambda-2048 benchmark-lambda-3008
+benchmark-lambda_all: benchmark-lambda-128 benchmark-lambda-256 benchmark-lambda-512 benchmark-lambda-1024 benchmark-lambda-1792 benchmark-lambda-2048 benchmark-lambda-3008 benchmark-lambda-10240
 benchmark-lambda-128:
 benchmark-lambda-256:
 benchmark-lambda-512:
@@ -122,6 +122,7 @@ benchmark-lambda-1024:
 benchmark-lambda-1792:
 benchmark-lambda-2048:
 benchmark-lambda-3008:
+benchmark-lambda-10240:
 
 benchmark-lambda-%:
 	$(MAKE) benchmark-lambda MEMORY=$*
