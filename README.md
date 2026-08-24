@@ -78,6 +78,11 @@ Here are some results from benchmarks performed on eu-west-1 and eu-north-1
 regions on 2024-06-15. See [analysis/2024/results-lambda.ipynb](analysis/2024/results-lambda.ipynb)
 for more detailed graphs.
 
+> [!NOTE]
+> These benchmarks are performed without the new [scalable network bandwidth](https://aws.amazon.com/about-aws/whats-new/2026/08/aws-lambda-network-bandwidth/)
+> feature enabled. When enabled, network throughput increases proportionally from 625 Mbps at 2 GB up to 3,000 Mbps at 10 GB.
+> Results below **do not** reflect bandwidth available with the new scaling behavior.
+
 ### eu-west-1
 
 | Memory (MB) | Baseline (Gbps) | Burst (Gbps) | Burst Duration (seconds) |
